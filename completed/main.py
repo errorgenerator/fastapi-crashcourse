@@ -1,70 +1,10 @@
 from datetime import datetime
-from fastapi import FastAPI, status
+from fastapi import status
 from starlette.responses import Response
-from pydantic import BaseModel
+from fastapi_app import app
+from blogpost_dict import blogposts
 
-class Blogpost(BaseModel):
-    """
-    DTO (Data Transfer Object) for a Blogpost.
-    The assignments for IDs is done solely by
-    the service. The client does not have control
-    over assigning IDs to keep the "database" consistent
-    """
-    created: str
-    updated: str | None
-    author: str
-    content: str
-
-class UpdateBody(BaseModel):
-    """
-    DTO (Data Transfore Object) for a Body for a PUT-Request.
-    The client is only allowed to update the author
-    and content of a Blogpost.
-    ID, Created, Updated are being controlled by the service.
-    """
-    author: str
-    content: str
-
-# Here is our in-memory "database" of blogposts
-blogposts = [
-    {
-        "id": 1,
-        "created": "12-04-2024",
-        "updated": None,
-        "author": "errorgenerator",
-        "content": "Lorem Ipsum"
-    },
-    {
-        "id": 2,
-        "created": "13-04-2024",
-        "updated": None,
-        "author": "errorgenerator",
-        "content": "I am a Teapot"
-    },
-    {
-        "id": 3,
-        "created": "14-04-2024",
-        "updated": None,
-        "author": "errorgenerator",
-        "content": "Lorem Ipsum 2"
-    },
-    {
-        "id": 4,
-        "created": "14-05-2024",
-        "updated": None,
-        "author": "errorgenerator",
-        "content": "A million beers"
-    }
-]
-
-# Create an instance of the Application Engine
-# This will allow us to inject our Endpoint logic
-# while the fastapi framework will take care of
-# all the boring stuff, like interface binding
-# concurrency, parsing, etc.
-app = FastAPI()
-
-
+from models import Blogpost, UpdateBody
 
 @app.get("/posts")
 def getAllPosts():
@@ -103,8 +43,8 @@ def createPost(body: Blogpost, response: Response):
 
     object_to_insert = {
         "id": id,
-        "created": body.created,
-        "updated": body.updated,
+        "created": datetime.strftime(datetime.now(), "%d-%m-%y"),
+        "updated": None,
         "author": body.author,
         "content": body.content
     }
@@ -127,14 +67,16 @@ def updatePost(id: int, body: UpdateBody, response: Response):
     for post in blogposts:
         postId = post["id"]
         if postId != None and postId == id:
+            blogposts.remove(post)
             # modify in place
             post = {
                 "id": post["id"],
                 "created": post["created"],
-                "updated": str(datetime.now),
+                "updated": datetime.strftime(datetime.now(), "%d-%m-%y"),
                 "content": body.content,
                 "author": body.author,
             }
+            blogposts.append(post)
             response.status_code = status.HTTP_202_ACCEPTED
             return post
     response.status_code = status.HTTP_404_NOT_FOUND
